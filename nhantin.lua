@@ -1,18 +1,25 @@
--- Delta Executor Mini Chat UI v2 (Head Message + Unread Badge + Drag)
+-- Delta Executor Cross-Platform Chat System v3
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Global Unread Counter
+-- 1. XÓA GUI CŨ NẾU ĐANG CHẠY (Dành cho người treo máy bấm lại script)
+local parentGui = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+if parentGui:FindFirstChild("DeltaMiniChat") then
+    parentGui.DeltaMiniChat:Destroy()
+end
+
 local unreadCount = 0
 
--- Create ScreenGui
+-- 2. TẠO SCREEN GUI MỚI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DeltaMiniChat"
-ScreenGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = parentGui
 
--- Main Frame (UI Chat chính)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 240, 0, 180)
@@ -25,7 +32,7 @@ MainFrame.Parent = ScreenGui
 local UICorner = Instance.new("UICorner", MainFrame)
 UICorner.CornerRadius = UDim.new(0, 8)
 
--- Title Bar (Thanh tiêu đề kéo thả)
+-- Title Bar (Kéo thả)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 25)
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -34,7 +41,7 @@ TitleBar.Parent = MainFrame
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -30, 1, 0)
 TitleLabel.Position = UDim2.new(0, 8, 0, 0)
-TitleLabel.Text = "Delta Chat"
+TitleLabel.Text = "Delta Chat (Cross-Ex)"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.BackgroundTransparency = 1
@@ -42,7 +49,7 @@ TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.TextSize = 13
 TitleLabel.Parent = TitleBar
 
--- Minimize Button (Nút thu nhỏ)
+-- Minimize Button
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
 MinimizeBtn.Position = UDim2.new(1, -22, 0, 2)
@@ -85,7 +92,7 @@ InputBox.Parent = MainFrame
 local InputCorner = Instance.new("UICorner", InputBox)
 InputCorner.CornerRadius = UDim.new(0, 4)
 
--- Open Button (Nút mở UI bé khi thu nhỏ)
+-- Open Button (Nút mở UI bé)
 local OpenBtn = Instance.new("TextButton")
 OpenBtn.Size = UDim2.new(0, 55, 0, 28)
 OpenBtn.Position = UDim2.new(0, 10, 0.5, 0)
@@ -99,7 +106,7 @@ OpenBtn.Parent = ScreenGui
 local OpenCorner = Instance.new("UICorner", OpenBtn)
 OpenCorner.CornerRadius = UDim.new(0, 6)
 
--- Unread Badge (Nút đỏ hiện số tin nhắn chưa đọc)
+-- Badge thông báo tin nhắn bỏ lỡ
 local BadgeFrame = Instance.new("Frame")
 BadgeFrame.Size = UDim2.new(0, 18, 0, 18)
 BadgeFrame.Position = UDim2.new(1, -8, 0, -5)
@@ -118,7 +125,7 @@ BadgeLabel.Font = Enum.Font.SourceSansBold
 BadgeLabel.TextSize = 11
 BadgeLabel.Parent = BadgeFrame
 
--- Dragging Logic (Chức năng Kéo Thả UI)
+-- Chức năng Kéo Thả UI
 local function makeDraggable(gui)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
@@ -147,7 +154,7 @@ end
 makeDraggable(MainFrame)
 makeDraggable(OpenBtn)
 
--- Mini/Open UI Logic & Unread Counter Handling
+-- Ẩn / Mở UI Chat
 MinimizeBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     OpenBtn.Visible = true
@@ -160,13 +167,10 @@ OpenBtn.MouseButton1Click:Connect(function()
     BadgeFrame.Visible = false
 end)
 
--- Hiển thị bong bóng tin nhắn trên đầu nhân vật
-local function showHeadMessage(senderName, text)
-    local targetPlayer = Players:FindFirstChild(senderName)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-        local head = targetPlayer.Character.Head
-        
-        -- Xóa gui cũ trên đầu nếu có
+-- Hiển thị Bong bóng tin nhắn trên đầu
+local function showHeadChat(senderPlayer, messageText)
+    if senderPlayer and senderPlayer.Character and senderPlayer.Character:FindFirstChild("Head") then
+        local head = senderPlayer.Character.Head
         local oldGui = head:FindFirstChild("DeltaHeadChat")
         if oldGui then oldGui:Destroy() end
         
@@ -190,7 +194,7 @@ local function showHeadMessage(senderName, text)
         msgLabel.Size = UDim2.new(1, -8, 1, -4)
         msgLabel.Position = UDim2.new(0, 4, 0, 2)
         msgLabel.BackgroundTransparency = 1
-        msgLabel.Text = text
+        msgLabel.Text = messageText
         msgLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         msgLabel.Font = Enum.Font.SourceSansBold
         msgLabel.TextSize = 13
@@ -198,20 +202,18 @@ local function showHeadMessage(senderName, text)
         msgLabel.Parent = msgBg
         
         task.delay(5, function()
-            if billGui and billGui.Parent then
-                billGui:Destroy()
-            end
+            if billGui and billGui.Parent then billGui:Destroy() end
         end)
     end
 end
 
--- Thêm Message vào UI
-local function addMessage(sender, text)
+-- Thêm tin nhắn vào khung chat UI
+local function renderMessage(senderName, text, senderPlayer)
     local MsgLabel = Instance.new("TextLabel")
     MsgLabel.Size = UDim2.new(1, 0, 0, 0)
     MsgLabel.BackgroundTransparency = 1
-    MsgLabel.TextColor3 = (sender == LocalPlayer.Name) and Color3.fromRGB(100, 200, 255) or Color3.fromRGB(255, 220, 100)
-    MsgLabel.Text = sender .. ": " .. text
+    MsgLabel.TextColor3 = (senderName == LocalPlayer.Name) and Color3.fromRGB(100, 200, 255) or Color3.fromRGB(255, 220, 100)
+    MsgLabel.Text = senderName .. ": " .. text
     MsgLabel.Font = Enum.Font.SourceSans
     MsgLabel.TextSize = 12
     MsgLabel.TextWrapped = true
@@ -222,47 +224,53 @@ local function addMessage(sender, text)
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
     ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.CanvasSize.Y.Offset)
 
-    -- Hiện tin nhắn trên đầu
-    showHeadMessage(sender, text)
+    if senderPlayer then
+        showHeadChat(senderPlayer, text)
+    end
 
-    -- Cập nhật tin nhắn bỏ lỡ nếu UI đang đóng
-    if not MainFrame.Visible and sender ~= LocalPlayer.Name then
+    if not MainFrame.Visible and senderName ~= LocalPlayer.Name then
         unreadCount = unreadCount + 1
         BadgeLabel.Text = tostring(unreadCount)
         BadgeFrame.Visible = true
     end
 end
 
--- Networking System (Kênh đồng bộ tin nhắn qua ReplicatedStorage)
-local ChatFolder = game:GetService("ReplicatedStorage"):FindFirstChild("DeltaChatFolder")
-if not ChatFolder then
-    ChatFolder = Instance.new("Folder")
-    ChatFolder.Name = "DeltaChatFolder"
-    ChatFolder.Parent = game:GetService("ReplicatedStorage")
-end
+-- 3. HỆ THỐNG GỬI / NHẬN ĐỒNG BỘ QUA CLIENT CHAT SERVER MẶC ĐỊNH
+local SayMessageRequest = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents") and ReplicatedStorage.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
 
-local ChatEvent = ChatFolder:FindFirstChild("DeltaChatEvent")
-if not ChatEvent then
-    ChatEvent = Instance.new("StringValue")
-    ChatEvent.Name = "DeltaChatEvent"
-    ChatEvent.Parent = ChatFolder
-end
-
--- Lắng nghe tin nhắn mới từ những người khác
-ChatEvent.Changed:Connect(function(val)
-    if val ~= "" then
-        local data = string.split(val, "||")
-        if #data >= 2 then
-            addMessage(data[1], data[2])
+local function sendMessage(text)
+    if SayMessageRequest then
+        SayMessageRequest:FireServer("[Delta] " .. text, "All")
+    elseif TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if generalChannel then
+            generalChannel:SendAsync("[Delta] " .. text)
         end
     end
+end
+
+-- Lắng nghe tin nhắn từ những người chơi khác trong Game
+Players.PlayerAdded:Connect(function(plr)
+    plr.Chatted:Connect(function(msg)
+        if string.sub(msg, 1, 8) == "[Delta] " then
+            renderMessage(plr.Name, string.sub(msg, 9), plr)
+        end
+    end)
 end)
 
--- Gửi tin nhắn khi gõ xong bấm Enter
+for _, plr in ipairs(Players:GetPlayers()) do
+    plr.Chatted:Connect(function(msg)
+        if string.sub(msg, 1, 8) == "[Delta] " then
+            renderMessage(plr.Name, string.sub(msg, 9), plr)
+        end
+    end)
+end
+
+-- Nhập tin nhắn và bấm Enter
 InputBox.FocusLost:Connect(function(enterPressed)
     if enterPressed and InputBox.Text ~= "" then
         local msg = InputBox.Text
         InputBox.Text = ""
-        ChatEvent.Value = LocalPlayer.Name .. "||" .. msg .. "||" .. math.random(1, 100000)
+        sendMessage(msg)
     end
 end)
